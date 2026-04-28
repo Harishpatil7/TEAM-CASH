@@ -9,7 +9,6 @@
 Our system is designed as a lightweight, modular pipeline for real-time processing.
 
 ### Architecture Diagram
-    ## 🏗️ System Architecture & Data Flow
 
 | Stage | Process | Technology |
 | :--- | :--- | :--- |
