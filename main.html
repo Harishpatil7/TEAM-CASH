@@ -102,7 +102,7 @@
 
     <!-- Charts -->
     <div class="chart-box">
-        <h3>Stress Over Time</h3>
+        <h3>Breathing Time</h3>
         <canvas id="stressChart" height="80"></canvas>
     </div>
     <div class="chart-box" style="background: #fff; border: 1px solid #ddd; position: relative;">
@@ -132,13 +132,14 @@ const ctx = document.getElementById('stressChart').getContext('2d');
 let chartLabels = [];
 let chartData = [];
 let step = 0;
+let lastChartUpdate = 0;
 
 const chart = new Chart(ctx, {
     type: 'line',
     data: {
         labels: chartLabels,
         datasets: [{
-            label: 'Stress Score',
+            label: 'Breathing Time',
             data: chartData,
             borderColor: '#1a73e8',
             backgroundColor: 'rgba(26,115,232,0.08)',
@@ -251,16 +252,25 @@ function updateDashboard(result) {
     // alert banner
     if (priority === 'High') {
         alertBanner.style.display = 'block';
+        if (!window.hasAlertedHigh) {
+            alert('High emergency patient detected! Immediate attention required.');
+            window.hasAlertedHigh = true;
+        }
     } else {
         alertBanner.style.display = 'none';
+        window.hasAlertedHigh = false;
     }
 
     // chart
-    step++;
-    if (chartData.length >= 30) { chartData.shift(); chartLabels.shift(); }
-    chartData.push(score);
-    chartLabels.push(step);
-    chart.update();
+    const now = Date.now();
+    if (now - lastChartUpdate >= 10000) {
+        lastChartUpdate = now;
+        step += 10;
+        if (chartData.length >= 30) { chartData.shift(); chartLabels.shift(); }
+        chartData.push(score);
+        chartLabels.push(step + 's');
+        chart.update();
+    }
 
     // update EKG BPM
     if (result.heart_rate !== undefined) {
@@ -300,11 +310,43 @@ function startMic() {
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.status === 'result') {
-                isSpeaking = true;
                 updateDashboard(data);
             } else if (data.status === 'silence') {
-                isSpeaking = false;
-                document.getElementById('ekgBpmValue').textContent = '--';
+                
+                // Gradually decay values to zero during silence
+                let currentStress = parseInt(stressValueEl.textContent) || 0;
+                let currentBpm = parseInt(bpmValueEl.textContent) || 0;
+                
+                if (currentStress > 0) {
+                    currentStress = Math.max(0, currentStress - 5);
+                    stressValueEl.textContent = currentStress;
+                }
+                
+                if (currentBpm > 0) {
+                    currentBpm = Math.max(0, currentBpm - 5);
+                    bpmValueEl.textContent = currentBpm;
+                }
+                
+                if (currentStress === 0) {
+                    priorityEl.textContent = '—';
+                    priorityEl.className = 'value low';
+                    stressLabelEl.textContent = 'Low';
+                    stressLabelEl.className = 'label low';
+                    document.getElementById('ekgBpmValue').textContent = '--';
+                    alertBanner.style.display = 'none';
+                }
+                
+                // Update chart to show decaying stress
+                const now = Date.now();
+                if (now - lastChartUpdate >= 10000) {
+                    lastChartUpdate = now;
+                    step += 10;
+                    if (chartData.length >= 30) { chartData.shift(); chartLabels.shift(); }
+                    chartData.push(currentStress);
+                    chartLabels.push(step + 's');
+                    chart.update();
+                }
+
                 statusBar.textContent = 'Listening (silence detected)...';
             } else if (data.status === 'error') {
                 statusBar.textContent = 'Error: ' + data.message;
@@ -322,12 +364,24 @@ function startMic() {
         // audio processing: send Float32 PCM chunks over WS
         audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
         const source = audioContext.createMediaStreamSource(stream);
-        scriptNode = audioContext.createScriptProcessor(4096, 1, 1);
+        scriptNode = audioContext.createScriptProcessor(1024, 1, 1);
 
+        window.lastLocalSpeech = Date.now();
         scriptNode.onaudioprocess = (e) => {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 const pcm = e.inputBuffer.getChannelData(0);
                 ws.send(pcm.buffer);
+                
+                // Real-time local sync for EKG display (bypasses network delay)
+                let sum = 0;
+                for (let i = 0; i < pcm.length; i++) { sum += pcm[i] * pcm[i]; }
+                const rms = Math.sqrt(sum / pcm.length);
+                if (rms > 0.005) {
+                    window.lastLocalSpeech = Date.now();
+                    isSpeaking = true;
+                } else if (Date.now() - window.lastLocalSpeech > 200) {
+                    isSpeaking = false;
+                }
             }
         };
 
@@ -341,7 +395,21 @@ function startMic() {
 
 function stopMic() {
     isSpeaking = false;
+    
+    // Reset values to zero
+    stressValueEl.textContent = '0';
+    bpmValueEl.textContent = '0';
+    priorityEl.textContent = '—';
+    priorityEl.className = 'value low';
+    stressLabelEl.textContent = 'Low';
+    stressLabelEl.className = 'label low';
     document.getElementById('ekgBpmValue').textContent = '--';
+    alertBanner.style.display = 'none';
+    
+    // Reset chart
+    chartData.fill(0);
+    chart.update();
+
     if (scriptNode) { scriptNode.disconnect(); scriptNode = null; }
     if (audioContext) { audioContext.close(); audioContext = null; }
     if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }

@@ -40,7 +40,7 @@ print("[server] Ready.")
 # WEBSOCKET AUDIO BUFFER
 # ==============================
 
-BUFFER_SECONDS = 0.5  # accumulate ~0.5s of audio before analysis
+BUFFER_SECONDS = 1  # accumulate ~1.0s of audio before analysis
 SILENCE_THRESHOLD = 0.005
 
 
@@ -82,8 +82,32 @@ class AudioStreamBuffer:
 
 
 # ==============================
-# ANALYSIS PIPELINE
+# ANALYSIS PIPELINE & VAD
 # ==============================
+
+def is_human_speech(audio, sr):
+    """
+    Voice Activity Detection (VAD) to filter out background noise/sounds.
+    Returns True only if the segment has acoustic properties of human speech.
+    """
+    # 1. Zero-Crossing Rate: Speech is typically between 0.01 and 0.25. 
+    # High ZCR means static/hiss; low ZCR means hum.
+    zcr = float(np.mean(librosa.feature.zero_crossing_rate(audio)))
+    if zcr > 0.25 or zcr < 0.005:
+        return False
+        
+    # 2. Spectral Centroid: Human voice energy is concentrated between 250Hz - 3500Hz
+    centroid = float(np.mean(librosa.feature.spectral_centroid(y=audio, sr=sr)))
+    if centroid < 250 or centroid > 3500:
+        return False
+        
+    # 3. Voiced Pitch Detection: Human speech has harmonic pitch.
+    # If no stable pitch is found, it's likely non-vocal background noise (like wind, cars, clapping).
+    f0, _, voiced_prob = librosa.pyin(audio, fmin=60, fmax=400, sr=sr)
+    if np.mean(voiced_prob > 0.1) < 0.05:
+        return False
+        
+    return True
 
 def run_pipeline(audio, sr):
     """
@@ -143,6 +167,8 @@ async def websocket_endpoint(ws: WebSocket):
     print("[ws] Client connected")
 
     buffer = AudioStreamBuffer()
+    stress_history = []
+    HISTORY_LEN = 3  # average over the last 3 updates (approx 0.3s) for near real-time
 
     try:
         while True:
@@ -155,16 +181,43 @@ async def websocket_endpoint(ws: WebSocket):
                 # check for silence
                 audio_level = float(np.mean(np.abs(audio)))
                 if audio_level < SILENCE_THRESHOLD:
+                    stress_history.clear()
                     await ws.send_json({
                         "status": "silence",
                         "audio_level": audio_level
                     })
                     continue
 
+                # check for human speech (ignore background noise)
+                if not is_human_speech(audio, sr):
+                    stress_history.clear()
+                    await ws.send_json({
+                        "status": "silence",
+                        "audio_level": audio_level,
+                        "message": "Background noise ignored"
+                    })
+                    continue
+
                 try:
-                    result = run_pipeline(audio, sr)
-                    result["status"] = "result"
-                    result["audio_level"] = round(audio_level, 4)
+                    raw_result = run_pipeline(audio, sr)
+                    
+                    # moving average to stabilize priority and heart rate
+                    stress_history.append(raw_result["stress_score"])
+                    if len(stress_history) > HISTORY_LEN:
+                        stress_history.pop(0)
+                        
+                    avg_stress = sum(stress_history) / len(stress_history)
+                    avg_class = classify(avg_stress)
+                    avg_hr = int(60 + (avg_stress / 100) * 80)
+                    
+                    result = {
+                        "status": "result",
+                        "audio_level": round(audio_level, 4),
+                        "stress_score": int(avg_stress),
+                        "heart_rate": avg_hr,
+                        "priority": avg_class["priority"]
+                    }
+                    
                     await ws.send_json(result)
 
                 except Exception as e:
