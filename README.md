@@ -9,21 +9,21 @@
 Our system is designed as a lightweight, modular pipeline for real-time processing.
 
 ### Architecture Diagram
-graph TD
+    graph TD
     %% Input Stage
-    Start([Start Call]) --> In[Capture Audio via Mic/WebSocket] 
+    Start([Start Call]) --> In[Capture Audio via Mic/WebSocket]
     
     %% Preprocessing
-    In --> Pre[Preprocessing Module: Noise Reduction & Normalization] 
+    In --> Pre[Preprocessing Module: Noise Reduction & Normalization]
     
     %% Feature Engineering
-    Pre --> Features{Feature Extraction} 
-    Features -->|Librosa| F1[Pitch & Energy]
-    Features -->|Librosa| F2[MFCCs & Spectral Features]
-    Features -->|Librosa| F3[Pause Frequency & Duration]
+    Pre --> Features{Feature Extraction}
+    Features --> F1[Pitch & Energy]
+    Features --> F2[MFCCs & Spectral Features]
+    Features --> F3[Pause Frequency & Duration]
     
     %% Analysis & ML
-    F1 & F2 & F3 --> ML[Analysis Module: XGBoost Regressor] 
+    F1 & F2 & F3 --> ML[Analysis Module: XGBoost Regressor]
     ML --> Score[Calculate Stress & Urgency Score]
     
     %% Triage Logic
@@ -44,7 +44,7 @@ graph TD
     style Triage fill:#ff9,stroke:#333,stroke-width:2px
     style Alert fill:#f66,stroke:#333,stroke-width:4px
     style End fill:#f9f,stroke:#333,stroke-width:2px
-
+    
 ### Module Breakdown [cite: 61]
 * **Audio Input Module**: Captures mic input or recorded call files using WebSockets for real-time flow.
 * **Preprocessing Module**: Performs noise reduction and normalization to prepare the signal.
