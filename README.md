@@ -9,45 +9,21 @@
 Our system is designed as a lightweight, modular pipeline for real-time processing.
 
 ### Architecture Diagram
-    graph TD
-        %% Input Stage
-        Start([Start Call]) --> In[Capture Audio via Mic/WebSocket]
+    ## 🏗️ System Architecture & Data Flow
 
-        %% Preprocessing
-        In --> Pre[Preprocessing Module: Noise Reduction & Normalization]
+| Stage | Process | Technology |
+| :--- | :--- | :--- |
+| **1. Input** | Real-time Audio Capture (Mic/Call) | **WebSockets / FastAPI** |
+| **2. Preprocess** | Noise Reduction & Normalization | **Python / NumPy** |
+| **3. Extract** | Feature Vectorization (MFCC, Pitch, Energy) | **Librosa** |
+| **4. Analyze** | Stress & Urgency Regression | **XGBoost** |
+| **5. Triage** | Priority Classification (Low/Med/High) | **Custom Logic Engine** |
+| **6. Output** | Live Dashboard & Emergency Alerts | **HTML/JS / Chart.js** |
 
-        %% Feature Engineering
-        Pre --> Features{Feature Extraction}
-        Features --> F1[Pitch & Energy]
-        Features --> F2[MFCCs & Spectral Features]
-        Features --> F3[Pause Frequency & Duration]
+---
 
-        %% Analysis & ML
-        F1 --> ML[Analysis Module: XGBoost Regressor]
-        F2 --> ML
-        F3 --> ML
-        ML --> Score[Calculate Stress Score]
-
-        %% Triage Logic
-        Score --> Triage{Triage Engine}
-        Triage -->|Score < 0.4| P1[Low Priority]
-        Triage -->|Score 0.4 - 0.7| P2[Medium Priority]
-        Triage -->|Score > 0.7| P3[High Priority]
-    
-        %% Output
-        P1 --> Dash[Update Visual Dashboard]
-        P2 --> Dash
-        P3 --> Dash
-        P3 --> Alert[Trigger Critical Alert]
-
-        %% End
-        Dash --> End([End Session])
-
-        %% Styling
-        style Start fill:#f9f,stroke:#333,stroke-width:2px
-        style Triage fill:#ff9,stroke:#333,stroke-width:2px
-        style Alert fill:#f66,stroke:#333,stroke-width:4px
-        style End fill:#f9f,stroke:#333,stroke-width:2px
+### **Logical Execution Flow**
+`Audio Stream` ➡️ `Preprocessing` ➡️ `Feature Extraction (Librosa)` ➡️ `ML Inference (XGBoost)` ➡️ `Triage Logic` ➡️ `Frontend Dashboard`
     
 ### Module Breakdown [cite: 61]
 * **Audio Input Module**: Captures mic input or recorded call files using WebSockets for real-time flow.
