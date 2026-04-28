@@ -57,6 +57,7 @@ Our system is designed as a lightweight, modular pipeline for real-time processi
 |            Frontend Dashboard            |
 |        (Live Vitals & Alerts UI)         |
 +------------------------------------------+
+```
 
 ### Module Breakdown
 * **Audio Input Module**: Captures mic input or recorded call files using WebSockets for real-time flow.
