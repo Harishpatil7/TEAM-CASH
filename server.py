@@ -4,13 +4,12 @@ import io
 import os
 import json
 import traceback
-import base64
 import numpy as np
 import soundfile as sf
 import librosa
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from preprocessing import preprocess_audio, TARGET_SR
@@ -135,16 +134,13 @@ def health():
 
 
 # ==============================
-# DASHBOARD WEBSOCKET
+# WEBSOCKET — REAL-TIME AUDIO
 # ==============================
-
-dashboard_clients = set()
 
 @app.websocket("/ws/audio")
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
-    print("[ws] Dashboard Client connected")
-    dashboard_clients.add(ws)
+    print("[ws] Client connected")
 
     buffer = AudioStreamBuffer()
 
@@ -179,115 +175,9 @@ async def websocket_endpoint(ws: WebSocket):
                     traceback.print_exc()
 
     except WebSocketDisconnect:
-        print("[ws] Dashboard Client disconnected")
-        dashboard_clients.discard(ws)
+        print("[ws] Client disconnected")
     except Exception as e:
         print(f"[ws] Unexpected error: {e}")
-        dashboard_clients.discard(ws)
-        traceback.print_exc()
-
-# ==============================
-# TWILIO INTEGRATION
-# ==============================
-
-@app.post("/twilio/incoming")
-async def twilio_incoming(request: Request):
-    """
-    Webhook for Twilio when a call comes in.
-    Returns TwiML to instruct Twilio to stream audio to our WebSocket.
-    """
-    host = request.headers.get("host")
-    scheme = request.headers.get("x-forwarded-proto", "https")
-    ws_scheme = "wss" if scheme == "https" else "ws"
-    
-    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Start>
-        <Stream url="{ws_scheme}://{host}/ws/twilio" />
-    </Start>
-    <Say>Connecting to Pulse Voice Triage System. Please describe your emergency.</Say>
-    <Pause length="120" />
-</Response>"""
-    return Response(content=xml, media_type="text/xml")
-
-@app.websocket("/ws/twilio")
-async def twilio_websocket_endpoint(ws: WebSocket):
-    """
-    WebSocket to receive real-time audio from Twilio Media Streams.
-    Twilio streams 8000Hz ULAW audio.
-    """
-    await ws.accept()
-    print("[ws] Twilio Stream Client connected")
-
-    # Twilio sends 8000Hz audio
-    buffer = AudioStreamBuffer(sample_rate=8000, min_seconds=BUFFER_SECONDS)
-
-    try:
-        while True:
-            text_data = await ws.receive_text()
-            data = json.loads(text_data)
-
-            if data['event'] == 'connected':
-                print("[ws] Twilio Call Connected")
-            elif data['event'] == 'start':
-                print("[ws] Twilio Stream Started")
-            elif data['event'] == 'media':
-                payload = data['media']['payload']
-                raw_bytes = base64.b64decode(payload)
-                
-                # Decode ULAW to float32 using soundfile
-                audio_f64, _ = sf.read(
-                    io.BytesIO(raw_bytes),
-                    channels=1,
-                    samplerate=8000,
-                    format='RAW',
-                    subtype='ULAW'
-                )
-                audio_f32 = audio_f64.astype(np.float32)
-                
-                # buffer.push expects bytes of float32 array
-                result_audio = buffer.push(audio_f32.tobytes())
-
-                if result_audio is not None:
-                    audio, sr = result_audio
-
-                    audio_level = float(np.mean(np.abs(audio)))
-                    if audio_level < SILENCE_THRESHOLD:
-                        msg = {
-                            "status": "silence",
-                            "audio_level": audio_level
-                        }
-                        # Broadcast silence to dashboard
-                        for client in list(dashboard_clients):
-                            try:
-                                await client.send_json(msg)
-                            except:
-                                dashboard_clients.discard(client)
-                        continue
-
-                    try:
-                        result = run_pipeline(audio, sr)
-                        result["status"] = "result"
-                        result["audio_level"] = round(audio_level, 4)
-                        
-                        # Broadcast result to all connected dashboard clients
-                        for client in list(dashboard_clients):
-                            try:
-                                await client.send_json(result)
-                            except:
-                                dashboard_clients.discard(client)
-                    except Exception as e:
-                        print(f"[ws/twilio] Pipeline error: {e}")
-                        traceback.print_exc()
-
-            elif data['event'] == 'stop':
-                print("[ws] Twilio Stream Stopped")
-                break
-
-    except WebSocketDisconnect:
-        print("[ws] Twilio Stream disconnected")
-    except Exception as e:
-        print(f"[ws] Twilio Unexpected error: {e}")
         traceback.print_exc()
 
 
