@@ -12,6 +12,7 @@ Pulse-Voice is a real-time, AI-driven emergency voice triage system built for 24
 - **Live Triage Dashboard**:
   - Live EKG-style monitor synchronized with the speaker's predicted heart rate and voice activity.
   - Real-time stress scoring and priority categorization (Low, Medium, High).
+  - Historical "Breathing Time" stress graph with 10-second interval updates.
   - Web-based interface built with HTML5, Chart.js, and Vanilla CSS.
 
 ## Architecture
