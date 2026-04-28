@@ -16,8 +16,7 @@ Our system is designed as a lightweight, modular pipeline for real-time processi
 | **2. Preprocess** | Noise Reduction & Normalization | **Python / NumPy** |
 | **3. Extract** | Feature Vectorization (MFCC, Pitch, Energy) | **Librosa** |
 | **4. Analyze** | Stress & Urgency Regression | **XGBoost** |
-| **5. Triage** | Priority Classification (Low/Med/High) | **Custom Logic Engine** |
-| **6. Output** | Live Dashboard & Emergency Alerts | **HTML/JS / Chart.js** |
+| **5. Output** | Live Dashboard & Emergency Alerts | **HTML/JS / Chart.js** |
 
 ---
 
@@ -44,12 +43,6 @@ Our system is designed as a lightweight, modular pipeline for real-time processi
 +------------------------------------------+
 |          ML Inference (XGBoost)          |
 |         (Calculate Stress Score)         |
-+------------------------------------------+
-                     |
-                     v
-+------------------------------------------+
-|               Triage Logic               |
-|      (Low / Medium / High Priority)      |
 +------------------------------------------+
                      |
                      v
