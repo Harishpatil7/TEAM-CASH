@@ -8,8 +8,6 @@
 ## 2. System Architecture
 Our system is designed as a lightweight, modular pipeline for real-time processing.
 
-### Architecture Diagram
-
 | Stage | Process | Technology |
 | :--- | :--- | :--- |
 | **1. Input** | Real-time Audio Capture (Mic/Call) | **WebSockets / FastAPI** |
