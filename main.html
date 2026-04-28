@@ -71,7 +71,8 @@
     <!-- Live mic controls -->
     <div class="controls">
         <button id="startBtn" onclick="startMic()">🎙 Start Mic</button>
-        <button id="stopBtn" onclick="stopMic()" disabled>⏹ Stop</button>
+        <button id="monitorBtn" onclick="startMonitor()" style="background: #e6a700; color: #fff;">📞 Monitor Call</button>
+        <button id="stopBtn" onclick="stopAll()" disabled>⏹ Stop</button>
         <div id="statusBar">Idle</div>
     </div>
 
@@ -125,6 +126,7 @@ const connectionEl = document.getElementById('connectionStatus');
 const statusBar = document.getElementById('statusBar');
 const alertBanner = document.getElementById('alertBanner');
 const startBtn = document.getElementById('startBtn');
+const monitorBtn = document.getElementById('monitorBtn');
 const stopBtn = document.getElementById('stopBtn');
 
 // ── Charts ──
@@ -294,6 +296,7 @@ function startMic() {
             connectionEl.style.color = '#0d8a0d';
             statusBar.textContent = 'Streaming...';
             startBtn.disabled = true;
+            if(monitorBtn) monitorBtn.disabled = true;
             stopBtn.disabled = false;
         };
 
@@ -316,6 +319,7 @@ function startMic() {
             connectionEl.style.color = '#999';
             statusBar.textContent = 'Disconnected';
             startBtn.disabled = false;
+            if(monitorBtn) monitorBtn.disabled = false;
             stopBtn.disabled = true;
         };
 
@@ -339,7 +343,45 @@ function startMic() {
     });
 }
 
-function stopMic() {
+function startMonitor() {
+    // connect websocket without mic
+    const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${protocol}://${location.host}/ws/audio`);
+    
+    ws.onopen = () => {
+        connectionEl.textContent = 'Connected (Monitor Mode)';
+        connectionEl.style.color = '#0d8a0d';
+        statusBar.textContent = 'Waiting for Twilio stream...';
+        startBtn.disabled = true;
+        if(monitorBtn) monitorBtn.disabled = true;
+        stopBtn.disabled = false;
+    };
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.status === 'result') {
+            isSpeaking = true;
+            updateDashboard(data);
+        } else if (data.status === 'silence') {
+            isSpeaking = false;
+            document.getElementById('ekgBpmValue').textContent = '--';
+            statusBar.textContent = 'Listening (silence detected)...';
+        } else if (data.status === 'error') {
+            statusBar.textContent = 'Error: ' + data.message;
+        }
+    };
+
+    ws.onclose = () => {
+        connectionEl.textContent = 'Disconnected';
+        connectionEl.style.color = '#999';
+        statusBar.textContent = 'Disconnected';
+        startBtn.disabled = false;
+        if(monitorBtn) monitorBtn.disabled = false;
+        stopBtn.disabled = true;
+    };
+}
+
+function stopAll() {
     isSpeaking = false;
     document.getElementById('ekgBpmValue').textContent = '--';
     if (scriptNode) { scriptNode.disconnect(); scriptNode = null; }
@@ -347,6 +389,7 @@ function stopMic() {
     if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
     if (ws) { ws.close(); ws = null; }
     startBtn.disabled = false;
+    if(monitorBtn) monitorBtn.disabled = false;
     stopBtn.disabled = true;
     statusBar.textContent = 'Stopped';
 }
