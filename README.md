@@ -22,9 +22,42 @@ Our system is designed as a lightweight, modular pipeline for real-time processi
 ---
 
 ### **Logical Execution Flow**
-`Audio Stream` ➡️ `Preprocessing` ➡️ `Feature Extraction (Librosa)` ➡️ `ML Inference (XGBoost)` ➡️ `Triage Logic` ➡️ `Frontend Dashboard`
++------------------------------------------+
+|               Audio Stream               |
+|        (Live Capture / WebSocket)        |
++------------------------------------------+
+                     |
+                     v
++------------------------------------------+
+|               Preprocessing              |
+|     (Noise Reduction & Normalization)    |
++------------------------------------------+
+                     |
+                     v
++------------------------------------------+
+|       Feature Extraction (Librosa)       |
+|          (MFCCs, Pitch, Energy)          |
++------------------------------------------+
+                     |
+                     v
++------------------------------------------+
+|          ML Inference (XGBoost)          |
+|         (Calculate Stress Score)         |
++------------------------------------------+
+                     |
+                     v
++------------------------------------------+
+|               Triage Logic               |
+|      (Low / Medium / High Priority)      |
++------------------------------------------+
+                     |
+                     v
++------------------------------------------+
+|            Frontend Dashboard            |
+|        (Live Vitals & Alerts UI)         |
++------------------------------------------+
     
-### Module Breakdown [cite: 61]
+### Module Breakdown
 * **Audio Input Module**: Captures mic input or recorded call files using WebSockets for real-time flow.
 * **Preprocessing Module**: Performs noise reduction and normalization to prepare the signal.
 * **Feature Extraction**: Uses **Librosa** to extract MFCCs, pitch, energy, and pauses.
