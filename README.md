@@ -22,6 +22,7 @@ Our system is designed as a lightweight, modular pipeline for real-time processi
 ---
 
 ### **Logical Execution Flow**
+```text
 +------------------------------------------+
 |               Audio Stream               |
 |        (Live Capture / WebSocket)        |
@@ -56,7 +57,7 @@ Our system is designed as a lightweight, modular pipeline for real-time processi
 |            Frontend Dashboard            |
 |        (Live Vitals & Alerts UI)         |
 +------------------------------------------+
-    
+
 ### Module Breakdown
 * **Audio Input Module**: Captures mic input or recorded call files using WebSockets for real-time flow.
 * **Preprocessing Module**: Performs noise reduction and normalization to prepare the signal.
