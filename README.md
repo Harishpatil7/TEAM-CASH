@@ -10,40 +10,44 @@ Our system is designed as a lightweight, modular pipeline for real-time processi
 
 ### Architecture Diagram
     graph TD
-    %% Input Stage
-    Start([Start Call]) --> In[Capture Audio via Mic/WebSocket]
-    
-    %% Preprocessing
-    In --> Pre[Preprocessing Module: Noise Reduction & Normalization]
-    
-    %% Feature Engineering
-    Pre --> Features{Feature Extraction}
-    Features --> F1[Pitch & Energy]
-    Features --> F2[MFCCs & Spectral Features]
-    Features --> F3[Pause Frequency & Duration]
-    
-    %% Analysis & ML
-    F1 & F2 & F3 --> ML[Analysis Module: XGBoost Regressor]
-    ML --> Score[Calculate Stress & Urgency Score]
-    
-    %% Triage Logic
-    Score --> Triage{Triage Engine}
-    Triage -->|Score < 0.4| P1[Low Priority]
-    Triage -->|Score 0.4 - 0.7| P2[Medium Priority]
-    Triage -->|Score > 0.7| P3[High Priority]
-    
-    %% Output
-    P1 & P2 & P3 --> Dash[Update Visual Dashboard]
-    P3 --> Alert[Trigger Critical Emergency Alert]
-    
-    %% End
-    Dash --> End([End Session])
+        %% Input Stage
+        Start([Start Call]) --> In[Capture Audio via Mic/WebSocket]
 
-    %% Styling
-    style Start fill:#f9f,stroke:#333,stroke-width:2px
-    style Triage fill:#ff9,stroke:#333,stroke-width:2px
-    style Alert fill:#f66,stroke:#333,stroke-width:4px
-    style End fill:#f9f,stroke:#333,stroke-width:2px
+        %% Preprocessing
+        In --> Pre[Preprocessing Module: Noise Reduction & Normalization]
+
+        %% Feature Engineering
+        Pre --> Features{Feature Extraction}
+        Features --> F1[Pitch & Energy]
+        Features --> F2[MFCCs & Spectral Features]
+        Features --> F3[Pause Frequency & Duration]
+
+        %% Analysis & ML
+        F1 --> ML[Analysis Module: XGBoost Regressor]
+        F2 --> ML
+        F3 --> ML
+        ML --> Score[Calculate Stress Score]
+
+        %% Triage Logic
+        Score --> Triage{Triage Engine}
+        Triage -->|Score < 0.4| P1[Low Priority]
+        Triage -->|Score 0.4 - 0.7| P2[Medium Priority]
+        Triage -->|Score > 0.7| P3[High Priority]
+    
+        %% Output
+        P1 --> Dash[Update Visual Dashboard]
+        P2 --> Dash
+        P3 --> Dash
+        P3 --> Alert[Trigger Critical Alert]
+
+        %% End
+        Dash --> End([End Session])
+
+        %% Styling
+        style Start fill:#f9f,stroke:#333,stroke-width:2px
+        style Triage fill:#ff9,stroke:#333,stroke-width:2px
+        style Alert fill:#f66,stroke:#333,stroke-width:4px
+        style End fill:#f9f,stroke:#333,stroke-width:2px
     
 ### Module Breakdown [cite: 61]
 * **Audio Input Module**: Captures mic input or recorded call files using WebSockets for real-time flow.
