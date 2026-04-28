@@ -1,0 +1,11 @@
+numpy
+pandas
+librosa
+soundfile
+scikit-learn
+xgboost
+joblib
+matplotlib
+fastapi
+uvicorn[standard]
+python-multipart

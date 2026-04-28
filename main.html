@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pulse-Voice Triage Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; background: #f5f5f5; color: #222 }
+        header { background: #111; color: #fff; padding: 16px 20px }
+        header h1 { margin: 0; font-size: 22px }
+        header p { margin: 4px 0 0; font-size: 13px; color: #aaa }
+        .container { padding: 20px; max-width: 1000px; margin: 0 auto }
+
+        .controls { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap }
+        .controls button {
+            padding: 10px 18px; border: none; border-radius: 4px;
+            font-size: 14px; cursor: pointer; font-weight: 600;
+        }
+        #startBtn { background: #1a73e8; color: #fff }
+        #startBtn:hover { background: #1558b0 }
+        #stopBtn { background: #d93025; color: #fff }
+        #stopBtn:hover { background: #b0251e }
+        #stopBtn:disabled { background: #999; cursor: not-allowed }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px; margin-bottom: 18px;
+        }
+        .card {
+            background: #fff; border: 1px solid #ddd; border-radius: 8px;
+            padding: 16px; text-align: center;
+        }
+        .card h3 { margin: 0 0 8px; font-size: 13px; color: #666; text-transform: uppercase }
+        .value { font-size: 32px; font-weight: 700 }
+        .label { font-size: 14px; margin-top: 6px; font-weight: 600 }
+
+        .low { color: #0d8a0d }
+        .medium { color: #e6a700 }
+        .high { color: #d93025 }
+
+        .chart-box {
+            background: #fff; border: 1px solid #ddd; border-radius: 8px;
+            padding: 16px; margin-bottom: 18px;
+        }
+        .chart-box h3 { margin: 0 0 10px; font-size: 14px; color: #444 }
+
+
+        #statusBar {
+            padding: 8px 14px; background: #eee; border-radius: 4px;
+            font-size: 13px; color: #555;
+        }
+        .alert-banner {
+            background: #d93025; color: #fff; padding: 12px 18px;
+            border-radius: 6px; font-weight: 700; margin-bottom: 14px;
+            display: none; text-align: center; font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Pulse-Voice Triage Dashboard</h1>
+    <p>Real-time audio stress analysis — stream from microphone</p>
+</header>
+
+<div class="container">
+
+    <div id="alertBanner" class="alert-banner">⚠ HIGH PRIORITY CASE DETECTED</div>
+
+    <!-- Live mic controls -->
+    <div class="controls">
+        <button id="startBtn" onclick="startMic()">🎙 Start Mic</button>
+        <button id="stopBtn" onclick="stopMic()" disabled>⏹ Stop</button>
+        <div id="statusBar">Idle</div>
+    </div>
+
+    <!-- Metric cards -->
+    <div class="grid">
+        <div class="card">
+            <h3>Stress Score</h3>
+            <div id="stressValue" class="value">0</div>
+            <div id="stressLabel" class="label low">Low</div>
+        </div>
+
+        <div class="card">
+            <h3>Priority</h3>
+            <div id="priorityValue" class="value" style="font-size:24px">—</div>
+        </div>
+
+        <div class="card">
+            <h3>Heart Rate</h3>
+            <div id="bpmValue" class="value">0</div>
+            <div class="label" style="color: #d93025">BPM</div>
+        </div>
+
+        <div class="card">
+            <h3>Connection</h3>
+            <div id="connectionStatus">Disconnected</div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="chart-box">
+        <h3>Stress Over Time</h3>
+        <canvas id="stressChart" height="80"></canvas>
+    </div>
+    <div class="chart-box" style="background: #fff; border: 1px solid #ddd; position: relative;">
+        <h3 style="color: #444; font-family: monospace; letter-spacing: 1px;">Live EKG Monitor</h3>
+        <div style="position: absolute; top: 16px; right: 20px; text-align: right;">
+            <div id="ekgBpmValue" style="color: #000; font-family: monospace; font-size: 32px; font-weight: bold;">--</div>
+            <div style="color: #444; font-family: monospace; font-size: 14px; opacity: 0.8;">BPM</div>
+        </div>
+        <canvas id="ecgCanvas" height="100" style="width: 100%; display: block;"></canvas>
+    </div>
+</div>
+
+<script>
+// ── Elements ──
+const stressValueEl = document.getElementById('stressValue');
+const stressLabelEl = document.getElementById('stressLabel');
+const priorityEl = document.getElementById('priorityValue');
+const bpmValueEl = document.getElementById('bpmValue');
+const connectionEl = document.getElementById('connectionStatus');
+const statusBar = document.getElementById('statusBar');
+const alertBanner = document.getElementById('alertBanner');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+
+// ── Charts ──
+const ctx = document.getElementById('stressChart').getContext('2d');
+let chartLabels = [];
+let chartData = [];
+let step = 0;
+
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: chartLabels,
+        datasets: [{
+            label: 'Stress Score',
+            data: chartData,
+            borderColor: '#1a73e8',
+            backgroundColor: 'rgba(26,115,232,0.08)',
+            tension: 0.3,
+            fill: true,
+        }]
+    },
+    options: { scales: { y: { min: 0, max: 100 } }, animation: { duration: 300 } }
+});
+
+// ── EKG Canvas Animation ──
+const ecgCanvas = document.getElementById('ecgCanvas');
+const ecgCtx = ecgCanvas.getContext('2d');
+let globalBpm = 60; // Updates from websocket
+let isSpeaking = false;
+
+function resizeEcg() {
+    if (!ecgCanvas.parentElement) return;
+    ecgCanvas.width = ecgCanvas.parentElement.clientWidth - 32;
+    ecgCanvas.height = 100;
+}
+window.addEventListener('resize', resizeEcg);
+resizeEcg();
+
+let time = 0;
+let ecgX = 0;
+let lastEcgY = ecgCanvas.height / 2;
+
+function getEcgValue(t, bpm) {
+    if (!isSpeaking) {
+        return (Math.random() - 0.5) * 0.01;
+    }
+
+    const beatDuration = 60 / bpm; 
+    const phase = (t % beatDuration) / beatDuration; 
+    
+    let y = 0; 
+    if (phase > 0.05 && phase < 0.1) {
+        y = Math.sin((phase - 0.05) * Math.PI / 0.05) * 0.15; // P wave
+    } else if (phase > 0.15 && phase < 0.17) {
+        y = -0.15; // Q
+    } else if (phase >= 0.17 && phase < 0.20) {
+        y = 1.0; // R
+    } else if (phase >= 0.20 && phase < 0.23) {
+        y = -0.25; // S
+    } else if (phase > 0.35 && phase < 0.45) {
+        y = Math.sin((phase - 0.35) * Math.PI / 0.1) * 0.25; // T wave
+    }
+    
+    y += (Math.random() - 0.5) * 0.04; // noise
+    return y; 
+}
+
+function drawEcg() {
+    requestAnimationFrame(drawEcg);
+
+    const speed = 2.5; 
+    ecgX += speed;
+    let wrapped = false;
+    if (ecgX >= ecgCanvas.width) {
+        ecgX = 0;
+        wrapped = true;
+    }
+    
+    time += 1/60; 
+    const val = getEcgValue(time, globalBpm);
+    const centerY = ecgCanvas.height / 2 + 10;
+    const amplitude = ecgCanvas.height * 0.4;
+    const y = centerY - val * amplitude;
+
+    // Erase ahead
+    ecgCtx.fillStyle = '#fff';
+    ecgCtx.fillRect(ecgX, 0, speed * 15, ecgCanvas.height);
+    
+    if (!wrapped && ecgX > speed) {
+        ecgCtx.beginPath();
+        ecgCtx.moveTo(ecgX - speed, lastEcgY);
+        ecgCtx.lineTo(ecgX, y);
+        ecgCtx.strokeStyle = '#000';
+        ecgCtx.lineWidth = 1.5;
+        ecgCtx.stroke();
+    }
+    
+    lastEcgY = y;
+}
+drawEcg();
+
+// ── Dashboard update ──
+function updateDashboard(result) {
+    const score = result.stress_score;
+    const priority = result.priority;
+
+    stressValueEl.textContent = score;
+    priorityEl.textContent = priority;
+
+    // color class
+    let cls = 'low';
+    if (score > 70) cls = 'high';
+    else if (score > 30) cls = 'medium';
+
+    stressLabelEl.textContent = cls.charAt(0).toUpperCase() + cls.slice(1);
+    stressLabelEl.className = 'label ' + cls;
+    priorityEl.className = 'value ' + cls;
+
+    // bpm
+    if (result.heart_rate !== undefined) {
+        bpmValueEl.textContent = result.heart_rate;
+    }
+
+    // alert banner
+    if (priority === 'High') {
+        alertBanner.style.display = 'block';
+    } else {
+        alertBanner.style.display = 'none';
+    }
+
+    // chart
+    step++;
+    if (chartData.length >= 30) { chartData.shift(); chartLabels.shift(); }
+    chartData.push(score);
+    chartLabels.push(step);
+    chart.update();
+
+    // update EKG BPM
+    if (result.heart_rate !== undefined) {
+        globalBpm = result.heart_rate;
+        const ekgBpmValueEl = document.getElementById('ekgBpmValue');
+        if (ekgBpmValueEl) {
+            ekgBpmValueEl.textContent = result.heart_rate;
+        }
+    }
+
+    statusBar.textContent = 'Last update: ' + new Date().toLocaleTimeString();
+}
+
+// ── WebSocket live mic ──
+let ws = null;
+let mediaStream = null;
+let audioContext = null;
+let scriptNode = null;
+
+function startMic() {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        mediaStream = stream;
+
+        // connect websocket
+        const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+        ws = new WebSocket(`${protocol}://${location.host}/ws/audio`);
+        ws.binaryType = 'arraybuffer';
+
+        ws.onopen = () => {
+            connectionEl.textContent = 'Connected';
+            connectionEl.style.color = '#0d8a0d';
+            statusBar.textContent = 'Streaming...';
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.status === 'result') {
+                isSpeaking = true;
+                updateDashboard(data);
+            } else if (data.status === 'silence') {
+                isSpeaking = false;
+                document.getElementById('ekgBpmValue').textContent = '--';
+                statusBar.textContent = 'Listening (silence detected)...';
+            } else if (data.status === 'error') {
+                statusBar.textContent = 'Error: ' + data.message;
+            }
+        };
+
+        ws.onclose = () => {
+            connectionEl.textContent = 'Disconnected';
+            connectionEl.style.color = '#999';
+            statusBar.textContent = 'Disconnected';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        };
+
+        // audio processing: send Float32 PCM chunks over WS
+        audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        const source = audioContext.createMediaStreamSource(stream);
+        scriptNode = audioContext.createScriptProcessor(4096, 1, 1);
+
+        scriptNode.onaudioprocess = (e) => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const pcm = e.inputBuffer.getChannelData(0);
+                ws.send(pcm.buffer);
+            }
+        };
+
+        source.connect(scriptNode);
+        scriptNode.connect(audioContext.destination);
+
+    }).catch(err => {
+        alert('Microphone access denied: ' + err.message);
+    });
+}
+
+function stopMic() {
+    isSpeaking = false;
+    document.getElementById('ekgBpmValue').textContent = '--';
+    if (scriptNode) { scriptNode.disconnect(); scriptNode = null; }
+    if (audioContext) { audioContext.close(); audioContext = null; }
+    if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+    if (ws) { ws.close(); ws = null; }
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    statusBar.textContent = 'Stopped';
+}
+
+</script>
+
+</body>
+</html>
