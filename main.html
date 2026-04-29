@@ -256,28 +256,6 @@
         const CHART_INTERVAL = 3000; // update every 3 seconds
         const MAX_POINTS = 40;
 
-        // Dynamic gradient that shifts green→yellow→red based on latest score
-        function getStressGradient(ctx, chartArea, score) {
-            if (!chartArea) return 'rgba(13,138,13,0.15)';
-            const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
-            if (score <= 30) {
-                gradient.addColorStop(0, 'rgba(13,138,13,0.02)');
-                gradient.addColorStop(1, 'rgba(13,138,13,0.25)');
-            } else if (score <= 70) {
-                gradient.addColorStop(0, 'rgba(230,167,0,0.02)');
-                gradient.addColorStop(1, 'rgba(230,167,0,0.25)');
-            } else {
-                gradient.addColorStop(0, 'rgba(217,48,37,0.02)');
-                gradient.addColorStop(1, 'rgba(217,48,37,0.35)');
-            }
-            return gradient;
-        }
-        function getStressBorderColor(score) {
-            if (score <= 30) return '#0d8a0d';
-            if (score <= 70) return '#e6a700';
-            return '#d93025';
-        }
-
         const chart = new Chart(ctx, {
             type: 'line',
             data: {
@@ -286,60 +264,16 @@
                     label: 'Stress Score',
                     data: chartData,
                     borderColor: '#1a73e8',
-                    borderWidth: 2.5,
                     backgroundColor: 'rgba(26,115,232,0.08)',
-                    tension: 0.4,
+                    tension: 0.3,
                     fill: true,
-                    pointRadius: 4,
-                    pointBackgroundColor: '#fff',
-                    pointBorderColor: '#1a73e8',
-                    pointBorderWidth: 2,
-                    pointHoverRadius: 7,
-                    pointHoverBackgroundColor: '#1a73e8',
                 }]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { intersect: false, mode: 'index' },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: 'rgba(0,0,0,0.8)',
-                        titleFont: { size: 13, weight: 'bold' },
-                        bodyFont: { size: 12 },
-                        padding: 10,
-                        cornerRadius: 6,
-                        callbacks: {
-                            label: (context) => {
-                                const v = context.parsed.y;
-                                let level = 'Low';
-                                if (v > 70) level = 'High';
-                                else if (v > 30) level = 'Medium';
-                                return `Stress: ${v}/100 (${level})`;
-                            }
-                        }
-                    }
-                },
                 scales: {
-                    y: {
-                        min: 0, max: 100,
-                        grid: { color: 'rgba(0,0,0,0.06)', drawBorder: false },
-                        ticks: {
-                            stepSize: 25,
-                            font: { size: 11 },
-                            color: '#888',
-                            callback: (v) => v + '%'
-                        },
-                        border: { display: false }
-                    },
-                    x: {
-                        grid: { display: false },
-                        ticks: { font: { size: 11 }, color: '#888', maxRotation: 0 },
-                        border: { display: false }
-                    }
+                    y: { min: 0, max: 100 }
                 },
-                animation: { duration: 400, easing: 'easeOutCubic' }
+                animation: { duration: 300 }
             }
         });
 
@@ -351,17 +285,6 @@
             if (chartData.length >= MAX_POINTS) { chartData.shift(); chartLabels.shift(); }
             chartData.push(score);
             chartLabels.push(step + 's');
-
-            // dynamic colors based on latest score
-            const ds = chart.data.datasets[0];
-            const borderCol = getStressBorderColor(score);
-            ds.borderColor = borderCol;
-            ds.pointBorderColor = borderCol;
-            ds.pointHoverBackgroundColor = borderCol;
-            ds.backgroundColor = (context) => {
-                const { ctx: c, chartArea } = context.chart;
-                return getStressGradient(c, chartArea, score);
-            };
             chart.update();
         }
 
