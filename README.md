@@ -1,4 +1,4 @@
-# Pulse-Voice Triage System
+# Emergency-Voice Triage System
 
 Pulse-Voice is a real-time, AI-driven emergency voice triage system built for 24-hour hackathons and rapid emergency response scenarios. It analyzes live audio streams from a browser microphone to estimate stress levels, approximate heart rate, and classify emergency priority (Low, Medium, High).
 
