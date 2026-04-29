@@ -443,12 +443,12 @@
                         let currentBpm = parseInt(bpmValueEl.textContent) || 0;
 
                         if (currentStress > 0) {
-                            currentStress = Math.max(0, currentStress - 5);
+                            currentStress = Math.max(0, currentStress - 15);
                             stressValueEl.textContent = currentStress;
                         }
 
                         if (currentBpm > 0) {
-                            currentBpm = Math.max(0, currentBpm - 5);
+                            currentBpm = Math.max(0, currentBpm - 15);
                             bpmValueEl.textContent = currentBpm;
                         }
 

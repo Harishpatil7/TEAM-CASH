@@ -168,7 +168,7 @@ async def websocket_endpoint(ws: WebSocket):
 
     buffer = AudioStreamBuffer()
     stress_history = []
-    HISTORY_LEN = 3  # average over the last 3 updates (approx 0.3s) for near real-time
+    HISTORY_LEN = 1  # send each reading immediately for real-time response
 
     try:
         while True:
