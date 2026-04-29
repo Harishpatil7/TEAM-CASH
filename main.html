@@ -50,10 +50,16 @@
             padding: 8px 14px; background: #eee; border-radius: 4px;
             font-size: 13px; color: #555;
         }
+        @keyframes flashBanner {
+            0% { background-color: #d93025; box-shadow: 0 0 10px rgba(217,48,37,0.5); }
+            50% { background-color: #ff5252; box-shadow: 0 0 20px rgba(255,82,82,0.8); }
+            100% { background-color: #d93025; box-shadow: 0 0 10px rgba(217,48,37,0.5); }
+        }
         .alert-banner {
             background: #d93025; color: #fff; padding: 12px 18px;
             border-radius: 6px; font-weight: 700; margin-bottom: 14px;
             display: none; text-align: center; font-size: 16px;
+            animation: flashBanner 1s infinite;
         }
     </style>
 </head>
@@ -252,13 +258,8 @@ function updateDashboard(result) {
     // alert banner
     if (priority === 'High') {
         alertBanner.style.display = 'block';
-        if (!window.hasAlertedHigh) {
-            alert('High emergency patient detected! Immediate attention required.');
-            window.hasAlertedHigh = true;
-        }
     } else {
         alertBanner.style.display = 'none';
-        window.hasAlertedHigh = false;
     }
 
     // chart
